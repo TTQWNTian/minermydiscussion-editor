@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>论坛帖子编辑器</title>
+    <style>
+         :root {
+            --bg: #f5f5f5;
+            --card: #fff;
+            --border: #ccc;
+            --primary: #699dfb;
+            --danger: #e23932;
+            --text: #333;
+            --radius: 4px;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.4;
+        }
+        
+        h1,
+        h2,
+        h3 {
+            margin: 15px 0 8px;
+        }
+        
+        h1 {
+            font-size: 22px;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 8px;
+        }
+        
+        h2 {
+            font-size: 18px;
+            margin-top: 20px;
+        }
+        
+        h3 {
+            font-size: 16px;
+            margin-top: 15px;
+        }
+        
+        div {
+            margin-bottom: 12px;
+        }
+        
+        input,
+        textarea,
+        select,
+        button {
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 14px;
+            margin: 3px 3px 3px 0;
+        }
+        
+        input[type="text"],
+        select {
+            width: 100%;
+            max-width: 300px;
+        }
+        
+        input[type="number"] {
+            width: 70px;
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 70px;
+            resize: vertical;
+        }
+        
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            opacity: 0.9;
+        }
+        /* 删除按钮颜色 */
+        
+        button[onclick*="remove"],
+        button[onclick*="clear"],
+        button[onclick*="清空"] {
+            background: var(--danger);
+        }
+        /* 角色列表容器 */
+        
+        #roleList {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--card);
+        }
+        /* 角色项 */
+        
+        #roleList div {
+            display: inline-block;
+            margin: 5px 8px;
+        }
+        
+        #roleList div button {
+            background: var(--danger);
+            padding: 2px 8px;
+            font-size: 12px;
+            margin-left: 6px;
+        }
+        /* 标签列表 */
+        
+        #tagsList span {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 3px 10px;
+            margin: 3px;
+            border-radius: 20px;
+            font-size: 13px;
+        }
+        
+        #tagsList span button {
+            background: none;
+            border: none;
+            color: white;
+            padding: 0 0 0 5px;
+            margin: 0;
+            font-size: 14px;
+        }
+        /* 内容预览 */
+        
+        #flowPreview,
+        #commentsList,
+        #repliesList {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 10px;
+            margin: 10px 0;
+            background: var(--card);
+            min-height: 40px;
+        }
+        /* 评论中的div样式 */
+        
+        #commentsList div,
+        #repliesList div {
+            background: #f8f9fa;
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: var(--radius);
+        }
+        /* JSON输出 */
+        
+        #jsonOutput {
+            width: 100%;
+            min-height: 200px;
+            font-family: monospace;
+            font-size: 13px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: none;
+            border-radius: var(--radius);
+            padding: 12px;
+        }
+        /* 复选框 */
+        
+        input[type="checkbox"] {
+            width: auto;
+        }
+        
+        label {
+            display: inline-flex;
+            align-items: center;
+        }
+    </style>
+</head>
+
+<body>
+    <button id="fullscreenBtn">全屏显示</button>
+    <div>
+        <h2>角色管理</h2>
+        <div>
+            添加新角色:
+            <input type="text" id="newRole" placeholder="输入角色名">
+            <button onclick="addRole()">添加角色</button>
+        </div>
+        <div id="rolesContainer">
+            <h3>角色列表:</h3>
+            <div id="roleList">暂无角色</div>
+            <button onclick="clearAllRoles()">清空所有角色</button>
+        </div>
+    </div>
+    <div>
+        <h2>帖子信息</h2>
+        <div>
+            发帖人:
+            <select id="authorSelect">
+                <option value="">-- 选择发帖人 --</option>
+            </select>
+        </div>
+        <div>
+            标题:
+            <input type="text" id="title" placeholder="输入帖子标题">
+        </div>
+        <div>
+            <h3>内容编辑</h3>
+            选择内容类型:
+            <select id="contentType" onchange="showContentInput()">
+                <option value="">-- 选择类型 --</option>
+                <option value="text">文本段落</option>
+                <option value="single">单张图片</option>
+                <option value="multiple">多张图片</option>
+            </select>
+            <div id="textInput" style="display:none;">
+                <div>
+                    文本内容:
+                    <textarea id="textContent" placeholder="输入文本内容"></textarea>
+                </div>
+                <button onclick="addTextItem()">添加文本</button>
+            </div>
+            <div id="singleImageInput" style="display:none;">
+                <div>
+                    单张图片路径:
+                    <input type="text" id="singleImage" placeholder="如：assets/img/默认头像.png" size="50">
+                </div>
+                <button onclick="addSingleImage()">添加单张图片</button>
+            </div>
+            <div id="multipleImagesInput" style="display:none;">
+                <div>
+                    多张图片路径（用英文逗号隔开）:
+                    <input type="text" id="multipleImages" placeholder="如：assets/img/img1.png,assets/img/img2.png" size="80">
+                </div>
+                <button onclick="addMultipleImages()">添加多张图片</button>
+            </div>
+        </div>
+        <div id="flowContainer">
+            <h3>内容流预览:</h3>
+            <div id="flowPreview">暂无内容</div>
+        </div>
+        <div>
+            时间戳:
+            <input type="datetime-local" id="timestamp">
+            <button onclick="setTimestampNow()">设为当前时间</button>
+        </div>
+        <div>
+            显示时间:
+            <input type="text" id="displayTime" placeholder="如：Sentinel Era33.2.20">
+        </div>
+    </div>
+    <div>
+        <h2>标签管理</h2>
+        <div>
+            添加标签:
+            <input type="text" id="newTag" placeholder="输入标签">
+            <button onclick="addTag()">添加标签</button>
+        </div>
+        <div id="tagsContainer">
+            <h3>已选标签:</h3>
+            <div id="tagsList">暂无标签</div>
+        </div>
+    </div>
+    <div>
+        <h2>统计信息</h2>
+        <div>
+            赞数:
+            <input type="number" id="likes" value="0" min="0">
+            <button onclick="changeLikes(1)">+1</button>
+            <button onclick="changeLikes(-1)">-1</button>
+        </div>
+        <div>
+            踩数:
+            <input type="number" id="dislikes" value="0" min="0">
+            <button onclick="changeDislikes(1)">+1</button>
+            <button onclick="changeDislikes(-1)">-1</button>
+        </div>
+    </div>
+    <div>
+        <h2>评论管理</h2>
+        <div>
+            <input type="checkbox" id="enableComments" onchange="toggleComments()">
+            <label for="enableComments">添加评论</label>
+        </div>
+        <div id="commentsSection" style="display:none;">
+            <div id="commentsContainer">
+                <h3>评论列表:</h3>
+                <div id="commentsList">暂无评论</div>
+            </div>
+            <div>
+                <h3>添加评论</h3>
+                <div>
+                    评论者:
+                    <select id="commentAuthorSelect">
+                        <option value="">-- 选择评论者 --</option>
+                    </select>
+                </div>
+                <div>
+                    评论内容:<br>
+                    <textarea id="commentContent" placeholder="评论内容"></textarea>
+                </div>
+                <div>
+                    <input type="checkbox" id="hasReplies" onchange="toggleReplies()">
+                    <label for="hasReplies">添加回复</label>
+                </div>
+                <div id="repliesSection" style="display:none;">
+                    <h4>回复列表</h4>
+                    <div id="repliesList">暂无回复</div>
+                    <div>
+                        添加回复:<br> 回复者:
+                        <select id="replyAuthorSelect">
+                            <option value="">-- 选择回复者 --</option>
+                        </select>
+                        <br> 回复内容:
+                        <br>
+                        <textarea id="replyContent" placeholder="回复内容"></textarea>
+                        <br>
+                        <button onclick="addReply()">添加回复</button>
+                    </div>
+                </div>
+                <br>
+                <button onclick="addComment()">添加评论</button>
+                <button onclick="clearCommentForm()">清空评论表单</button>
+            </div>
+        </div>
+    </div>
+    <div>
+        <h2>操作</h2>
+        <button onclick="generateJSON()">生成JSON</button>
+        <button onclick="resetForm()">重置表单</button>
+        <button onclick="clearJSON()">清空输出</button>
+    </div>
+    <div>
+        <h2>JSON输出</h2>
+        <textarea id="jsonOutput" readonly></textarea>
+        <div>
+            <button onclick="copyJSON()">复制JSON</button>
+        </div>
+    </div>
+    <script>
+        // 数据存储
+        let roles = [];
+        let tags = [];
+        let flow = [];
+        let comments = [];
+        let currentReplies = [];
+        // 初始化 - 从本地存储加载角色
+        document.addEventListener('DOMContentLoaded', function() {
+            loadRolesFromStorage();
+            setTimestampNow();
+            updateAuthorSelect();
+            updateCommentAuthorSelect();
+            updateReplyAuthorSelect();
+        });
+        // 保存角色到本地存储
+        function saveRolesToStorage() {
+            localStorage.setItem('forum_editor_roles', JSON.stringify(roles));
+        }
+        // 从本地存储加载角色
+        function loadRolesFromStorage() {
+            const savedRoles = localStorage.getItem('forum_editor_roles');
+            if (savedRoles) {
+                try {
+                    roles = JSON.parse(savedRoles);
+                    updateRoleList();
+                } catch (e) {
+                    console.error('加载角色数据失败:', e);
+                    roles = [];
+                }
+            }
+        }
+
+        function showContentInput() {
+            const contentType = document.getElementById('contentType').value;
+            document.getElementById('textInput').style.display = 'none';
+            document.getElementById('singleImageInput').style.display = 'none';
+            document.getElementById('multipleImagesInput').style.display = 'none';
+            if (contentType === 'text') {
+                document.getElementById('textInput').style.display = 'block';
+            } else if (contentType === 'single') {
+                document.getElementById('singleImageInput').style.display = 'block';
+            } else if (contentType === 'multiple') {
+                document.getElementById('multipleImagesInput').style.display = 'block';
+            }
+        }
+
+        function addTextItem() {
+            const textContent = document.getElementById('textContent').value.trim();
+            if (!textContent) {
+                alert('请输入文本内容');
+                return;
+            }
+            flow.push({
+                p: textContent
+            });
+            document.getElementById('textContent').value = '';
+            document.getElementById('contentType').value = '';
+            document.getElementById('textInput').style.display = 'none';
+            updateFlowPreview();
+        }
+
+        function addSingleImage() {
+            const singleImage = document.getElementById('singleImage').value.trim();
+            if (!singleImage) {
+                alert('请输入图片路径');
+                return;
+            }
+            flow.push({
+                img: singleImage
+            });
+            document.getElementById('singleImage').value = '';
+            document.getElementById('contentType').value = '';
+            document.getElementById('singleImageInput').style.display = 'none';
+            updateFlowPreview();
+        }
+
+        function addMultipleImages() {
+            const multipleImages = document.getElementById('multipleImages').value.trim();
+            if (!multipleImages) {
+                alert('请输入图片路径（用英文逗号隔开）');
+                return;
+            }
+            flow.push({
+                img: multipleImages
+            });
+            document.getElementById('multipleImages').value = '';
+            document.getElementById('contentType').value = '';
+            document.getElementById('multipleImagesInput').style.display = 'none';
+            updateFlowPreview();
+        }
+
+        function removeFlowItem(index) {
+            if (confirm('确定删除此项吗？')) {
+                flow.splice(index, 1);
+                updateFlowPreview();
+            }
+        }
+
+        function updateFlowPreview() {
+            const flowPreview = document.getElementById('flowPreview');
+            if (flow.length === 0) {
+                flowPreview.innerHTML = '暂无内容';
+                return;
+            }
+            let html = '<div>';
+            flow.forEach((item, index) => {
+                html += '<div>';
+                if (item.p) {
+                    html += '<div>文本: ' + item.p + ' <button onclick="removeFlowItem(' + index + ')">删除</button></div>';
+                } else if (item.img) {
+                    const images = item.img.split(',');
+                    if (images.length === 1) {
+                        html += '<div>单张图片: ' + item.img + ' <button onclick="removeFlowItem(' + index + ')">删除</button></div>';
+                    } else {
+                        html += '<div>多张图片: ' + item.img + ' <button onclick="removeFlowItem(' + index + ')">删除</button></div>';
+                    }
+                }
+                html += '</div>';
+            });
+            html += '</div>';
+            flowPreview.innerHTML = html;
+        }
+
+        function addRole() {
+            const newRoleInput = document.getElementById('newRole');
+            const roleName = newRoleInput.value.trim();
+            if (!roleName) {
+                alert('请输入角色名');
+                return;
+            }
+            if (roles.includes(roleName)) {
+                alert('该角色已存在');
+                return;
+            }
+            roles.push(roleName);
+            newRoleInput.value = '';
+            // 保存到本地存储
+            saveRolesToStorage();
+            updateRoleList();
+            updateAuthorSelect();
+            updateCommentAuthorSelect();
+            updateReplyAuthorSelect();
+        }
+
+        function removeRole(index) {
+            if (confirm('确定移除该角色吗？')) {
+                roles.splice(index, 1);
+                // 保存到本地存储
+                saveRolesToStorage();
+                updateRoleList();
+                updateAuthorSelect();
+                updateCommentAuthorSelect();
+                updateReplyAuthorSelect();
+            }
+        }
+
+        function clearAllRoles() {
+            if (confirm('确定清空所有角色吗？')) {
+                roles = [];
+                // 清除本地存储
+                localStorage.removeItem('forum_editor_roles');
+                updateRoleList();
+                updateAuthorSelect();
+                updateCommentAuthorSelect();
+                updateReplyAuthorSelect();
+            }
+        }
+
+        function updateRoleList() {
+            const roleList = document.getElementById('roleList');
+            if (roles.length === 0) {
+                roleList.innerHTML = '暂无角色';
+                return;
+            }
+            let html = '<div>';
+            roles.forEach((role, index) => {
+                html += '<div>' + role + ' <button onclick="removeRole(' + index + ')">移除</button></div>';
+            });
+            html += '</div>';
+            roleList.innerHTML = html;
+        }
+
+        function updateAuthorSelect() {
+            const select = document.getElementById('authorSelect');
+            select.innerHTML = '<option value="">-- 选择发帖人 --</option>';
+            roles.forEach(role => {
+                const option = document.createElement('option');
+                option.value = role;
+                option.textContent = role;
+                select.appendChild(option);
+            });
+        }
+
+        function updateCommentAuthorSelect() {
+            const select = document.getElementById('commentAuthorSelect');
+            select.innerHTML = '<option value="">-- 选择评论者 --</option>';
+            roles.forEach(role => {
+                const option = document.createElement('option');
+                option.value = role;
+                option.textContent = role;
+                select.appendChild(option);
+            });
+        }
+
+        function updateReplyAuthorSelect() {
+            const select = document.getElementById('replyAuthorSelect');
+            select.innerHTML = '<option value="">-- 选择回复者 --</option>';
+            roles.forEach(role => {
+                const option = document.createElement('option');
+                option.value = role;
+                option.textContent = role;
+                select.appendChild(option);
+            });
+        }
+
+        function addTag() {
+            const newTagInput = document.getElementById('newTag');
+            const tagName = newTagInput.value.trim();
+            if (!tagName) {
+                alert('请输入标签名');
+                return;
+            }
+            if (tags.includes(tagName)) {
+                alert('该标签已存在');
+                return;
+            }
+            tags.push(tagName);
+            newTagInput.value = '';
+            updateTagsDisplay();
+        }
+
+        function removeTag(index) {
+            tags.splice(index, 1);
+            updateTagsDisplay();
+        }
+
+        function updateTagsDisplay() {
+            const tagsList = document.getElementById('tagsList');
+            if (tags.length === 0) {
+                tagsList.innerHTML = '暂无标签';
+                return;
+            }
+            let html = '<div>';
+            tags.forEach((tag, index) => {
+                html += '<span>' + tag + ' <button onclick="removeTag(' + index + ')">×</button></span> ';
+            });
+            html += '</div>';
+            tagsList.innerHTML = html;
+        }
+
+        function setTimestampNow() {
+            const now = new Date();
+            const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+                .toISOString()
+                .slice(0, 16);
+            document.getElementById('timestamp').value = localDateTime;
+        }
+
+        function changeLikes(amount) {
+            const likesInput = document.getElementById('likes');
+            let current = parseInt(likesInput.value) || 0;
+            current += amount;
+            if (current < 0) current = 0;
+            likesInput.value = current;
+        }
+
+        function changeDislikes(amount) {
+            const dislikesInput = document.getElementById('dislikes');
+            let current = parseInt(dislikesInput.value) || 0;
+            current += amount;
+            if (current < 0) current = 0;
+            dislikesInput.value = current;
+        }
+
+        function toggleComments() {
+            const enableComments = document.getElementById('enableComments').checked;
+            const commentsSection = document.getElementById('commentsSection');
+            commentsSection.style.display = enableComments ? 'block' : 'none';
+            if (!enableComments) {
+                comments = [];
+                currentReplies = [];
+                updateCommentsDisplay();
+                updateRepliesDisplay();
+            }
+        }
+
+        function toggleReplies() {
+            const hasReplies = document.getElementById('hasReplies').checked;
+            const repliesSection = document.getElementById('repliesSection');
+            repliesSection.style.display = hasReplies ? 'block' : 'none';
+            if (!hasReplies) {
+                currentReplies = [];
+                updateRepliesDisplay();
+            }
+        }
+
+        function addReply() {
+            const replyAuthorSelect = document.getElementById('replyAuthorSelect');
+            const replyContent = document.getElementById('replyContent').value.trim();
+            if (replyAuthorSelect.value === '' || !replyContent) {
+                alert('请选择回复者并填写回复内容');
+                return;
+            }
+            currentReplies.push({
+                author: replyAuthorSelect.value,
+                content: replyContent
+            });
+            replyAuthorSelect.value = '';
+            document.getElementById('replyContent').value = '';
+            updateRepliesDisplay();
+        }
+
+        function removeReply(index) {
+            currentReplies.splice(index, 1);
+            updateRepliesDisplay();
+        }
+
+        function updateRepliesDisplay() {
+            const repliesList = document.getElementById('repliesList');
+            if (currentReplies.length === 0) {
+                repliesList.innerHTML = '暂无回复';
+                return;
+            }
+            let html = '<div>';
+            currentReplies.forEach((reply, index) => {
+                html += '<div><strong>' + reply.author + ':</strong> ' + reply.content + ' <button onclick="removeReply(' + index + ')">删除</button></div>';
+            });
+            html += '</div>';
+            repliesList.innerHTML = html;
+        }
+
+        function addComment() {
+            const commentAuthorSelect = document.getElementById('commentAuthorSelect');
+            const commentContent = document.getElementById('commentContent').value.trim();
+            if (commentAuthorSelect.value === '' || !commentContent) {
+                alert('请选择评论者并填写评论内容');
+                return;
+            }
+            const comment = {
+                author: commentAuthorSelect.value,
+                content: commentContent
+            };
+            if (currentReplies.length > 0) {
+                comment.replies = [...currentReplies];
+            }
+            comments.push(comment);
+            clearCommentForm();
+            updateCommentsDisplay();
+        }
+
+        function clearCommentForm() {
+            document.getElementById('commentAuthorSelect').value = '';
+            document.getElementById('commentContent').value = '';
+            document.getElementById('hasReplies').checked = false;
+            document.getElementById('repliesSection').style.display = 'none';
+            currentReplies = [];
+            updateRepliesDisplay();
+        }
+
+        function removeComment(index) {
+            if (confirm('确定删除这条评论吗？')) {
+                comments.splice(index, 1);
+                updateCommentsDisplay();
+            }
+        }
+
+        function updateCommentsDisplay() {
+            const commentsList = document.getElementById('commentsList');
+            if (comments.length === 0) {
+                commentsList.innerHTML = '暂无评论';
+                return;
+            }
+            let html = '<div>';
+            comments.forEach((comment, index) => {
+                html += '<div>';
+                html += '<div><strong>' + comment.author + ':</strong> ' + comment.content + '</div>';
+                if (comment.replies && comment.replies.length > 0) {
+                    html += '<div>';
+                    html += '<strong>回复:</strong>';
+                    comment.replies.forEach((reply, replyIndex) => {
+                        html += '<div><strong>' + reply.author + ':</strong> ' + reply.content + '</div>';
+                    });
+                    html += '</div>';
+                }
+                html += '<div><button onclick="removeComment(' + index + ')">删除评论</button></div>';
+                html += '</div>';
+            });
+            html += '</div>';
+            commentsList.innerHTML = html;
+        }
+
+        function generateJSON() {
+            const author = document.getElementById('authorSelect').value;
+            const title = document.getElementById('title').value.trim();
+            if (!author) {
+                alert('请选择发帖人');
+                return;
+            }
+            if (!title) {
+                alert('请输入帖子标题');
+                return;
+            }
+            const timestamp = document.getElementById('timestamp').value;
+            const displayTime = document.getElementById('displayTime').value.trim();
+            const likes = parseInt(document.getElementById('likes').value) || 0;
+            const dislikes = parseInt(document.getElementById('dislikes').value) || 0;
+            const postData = {
+                author: author,
+                title: title,
+                timestamp: timestamp || "",
+                displayTime: displayTime || "",
+                tags: tags,
+                stats: {
+                    likes: likes,
+                    dislikes: dislikes
+                }
+            };
+            if (flow.length > 0) {
+                postData.flow = flow;
+            } else {
+                postData.content = "";
+            }
+            const enableComments = document.getElementById('enableComments').checked;
+            if (enableComments && comments.length > 0) {
+                postData.comments = comments;
+            }
+            const jsonOutput = document.getElementById('jsonOutput');
+            jsonOutput.value = JSON.stringify(postData, null, 2);
+        }
+
+        function copyJSON() {
+            const jsonOutput = document.getElementById('jsonOutput');
+            const text = jsonOutput.value;
+            if (!text || text.trim() === '') {
+                alert('没有JSON内容可复制');
+                return;
+            }
+            jsonOutput.select();
+            document.execCommand('copy');
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = '已复制!';
+            setTimeout(() => {
+                button.textContent = originalText;
+            }, 2000);
+        }
+
+        function clearJSON() {
+            document.getElementById('jsonOutput').value = '';
+        }
+
+        function resetForm() {
+            if (confirm('确定要重置表单数据吗？\n（角色数据不会被清除）')) {
+                document.getElementById('authorSelect').value = '';
+                document.getElementById('title').value = '';
+                document.getElementById('textContent').value = '';
+                document.getElementById('singleImage').value = '';
+                document.getElementById('multipleImages').value = '';
+                document.getElementById('displayTime').value = '';
+                document.getElementById('newTag').value = '';
+                document.getElementById('likes').value = '0';
+                document.getElementById('dislikes').value = '0';
+                document.getElementById('enableComments').checked = false;
+                document.getElementById('hasReplies').checked = false;
+                document.getElementById('contentType').value = '';
+                document.getElementById('textInput').style.display = 'none';
+                document.getElementById('singleImageInput').style.display = 'none';
+                document.getElementById('multipleImagesInput').style.display = 'none';
+                // 只重置当前表单数据，不清除角色
+                tags = [];
+                flow = [];
+                comments = [];
+                currentReplies = [];
+                setTimestampNow();
+                updateTagsDisplay();
+                updateFlowPreview();
+                updateCommentsDisplay();
+                updateRepliesDisplay();
+                document.getElementById('commentsSection').style.display = 'none';
+                document.getElementById('repliesSection').style.display = 'none';
+                clearJSON();
+            }
+        }
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        // 检查全屏API支持
+        const fullscreenEnabled = document.fullscreenEnabled ||
+            document.webkitFullscreenEnabled ||
+            document.mozFullScreenEnabled ||
+            document.msFullscreenEnabled;
+        if (!fullscreenEnabled) {
+            fullscreenBtn.textContent = '您的浏览器不支持全屏';
+            fullscreenBtn.disabled = true;
+        }
+        // 进入全屏
+        function enterFullscreen(element) {
+            if (element.requestFullscreen) {
+                element.requestFullscreen();
+            } else if (element.webkitRequestFullscreen) { // Safari
+                element.webkitRequestFullscreen();
+            } else if (element.mozRequestFullScreen) { // Firefox
+                element.mozRequestFullScreen();
+            } else if (element.msRequestFullscreen) { // IE/Edge
+                element.msRequestFullscreen();
+            }
+        }
+        // 退出全屏
+        function exitFullscreen() {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.mozCancelFullScreen) {
+                document.mozCancelFullScreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+        }
+        // 检查当前是否全屏
+        function isFullscreen() {
+            return document.fullscreenElement ||
+                document.webkitFullscreenElement ||
+                document.mozFullScreenElement ||
+                document.msFullscreenElement;
+        }
+        // 按钮点击事件
+        fullscreenBtn.addEventListener('click', function() {
+            if (!isFullscreen()) {
+                // 全屏整个页面
+                enterFullscreen(document.documentElement);
+            } else {
+                exitFullscreen();
+            }
+        });
+        // 全屏状态变化监听
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+        function handleFullscreenChange() {
+            if (isFullscreen()) {
+                fullscreenBtn.textContent = '退出全屏';
+            } else {
+                fullscreenBtn.textContent = '全屏显示';
+            }
+        }
+    </script>
+</body>
+
+</html>
